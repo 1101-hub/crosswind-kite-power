@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crosswind Kite Power — Interactive Model</title>
+<meta name="description" content="Interactive quasi-steady model of a crosswind kite power system, with seven pre-registered predictions computed live.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>&#129793;</text></svg>">
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body,h1,h2,p,table{margin:0}
+  img,canvas{max-width:100%}
+  button,input{font:inherit;color:inherit}
+</style>
+</head>
+<body>
+
+<button id="theme-toggle" type="button" aria-label="Switch colour theme" title="Switch colour theme">
+  <span aria-hidden="true" id="theme-icon">&#9681;</span>
+</button>
+<style>
+  #theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:34px; height:34px; display:grid; place-items:center;
+    background:var(--panel); color:var(--ink-2);
+    border:1px solid var(--line); border-radius:3px; cursor:pointer;
+    font-size:15px; line-height:1;
+  }
+  #theme-toggle:hover{ color:var(--flow); border-color:var(--flow); }
+  #theme-toggle:focus-visible{ outline:2px solid var(--flow); outline-offset:2px; }
+  @media (max-width:520px){ #theme-toggle{ top:8px; right:8px; } }
+</style>
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --surface:      #FBFBFA;
+    --panel:        #FFFFFF;
+    --panel-2:      #F2F4F5;
+    --line:         #DDE2E4;
+    --line-soft:    #EAEEEF;
+
+    --ink:          #12181C;
+    --ink-2:        #46545C;
+    --ink-3:        #74848C;
+
+    --flow:         #00A0A8;
+    --tension:      #F0407A;
+    --stall:        #B4661A;
+    --stall-bg:     #FBF0E2;
+
+    --ramp-1:       #FBDCE6;
+    --ramp-2:       #F7A8C2;
+    --ramp-3:       #F0407A;
+    --ramp-4:       #B41E52;
+    --ramp-5:       #741132;
+
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    --r: 3px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface:   #101314;
+      --panel:     #171B1D;
+      --panel-2:   #1E2325;
+      --line:      #2C3336;
+      --line-soft: #232A2C;
+
+      --ink:       #E8EDEF;
+      --ink-2:     #A0AEB4;
+      --ink-3:     #6E7E85;
+
+      --flow:      #00959E;
+      --tension:   #E23A66;
+      --stall:     #E0A44C;
+      --stall-bg:  #2A2115;
+
+      --ramp-1:    #3A1A26;
+      --ramp-2:    #78243F;
+      --ramp-3:    #C2325C;
+      --ramp-4:    #E85A83;
+      --ramp-5:    #FBA8C0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface:#101314; --panel:#171B1D; --panel-2:#1E2325; --line:#2C3336; --line-soft:#232A2C;
+    --ink:#E8EDEF; --ink-2:#A0AEB4; --ink-3:#6E7E85;
+    --flow:#00959E; --tension:#E23A66; --stall:#E0A44C; --stall-bg:#2A2115;
+    --ramp-1:#3A1A26; --ramp-2:#78243F; --ramp-3:#C2325C; --ramp-4:#E85A83; --ramp-5:#FBA8C0;
+  }
+  :root[data-theme="light"] {
+    --surface:#FBFBFA; --panel:#FFFFFF; --panel-2:#F2F4F5; --line:#DDE2E4; --line-soft:#EAEEEF;
+    --ink:#12181C; --ink-2:#46545C; --ink-3:#74848C;
+    --flow:#00A0A8; --tension:#F0407A; --stall:#B4661A; --stall-bg:#FBF0E2;
+    --ramp-1:#FBDCE6; --ramp-2:#F7A8C2; --ramp-3:#F0407A; --ramp-4:#B41E52; --ramp-5:#741132;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--surface);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1220px; margin: 0 auto; padding: 32px 20px 72px; }
+
+  /* ---------- masthead ---------- */
+  .masthead { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 24px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--flow);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(26px, 4.2vw, 40px);
+    line-height: 1.08;
+    letter-spacing: -.025em;
+    font-weight: 640;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    margin: 0; max-width: 66ch; color: var(--ink-2); font-size: 16px;
+  }
+  .standfirst code {
+    font-family: var(--mono); font-size: .88em;
+    background: var(--panel-2); padding: 1px 5px; border-radius: var(--r);
+  }
+
+  /* ---------- stat tiles ---------- */
+  .tiles {
+    display: grid; gap: 1px; background: var(--line);
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    border: 1px solid var(--line); border-radius: var(--r);
+    overflow: hidden; margin-bottom: 24px;
+  }
+  .tile { background: var(--panel); padding: 14px 16px 15px; }
+  .tile-label {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
+  }
+  .tile-value {
+    font-family: var(--mono); font-size: 25px; font-weight: 500;
+    letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  .tile-unit { font-size: 13px; color: var(--ink-3); margin-left: 2px; }
+  .tile-sub { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 3px; }
+  .tile.is-flow .tile-value { color: var(--flow); }
+  .tile.is-tension .tile-value { color: var(--tension); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    padding: 3px 8px; border-radius: 100px; letter-spacing: .04em;
+  }
+  .pill-ok { background: color-mix(in srgb, var(--flow) 14%, transparent); color: var(--flow); }
+  .pill-stall { background: var(--stall-bg); color: var(--stall); }
+
+  /* ---------- main grid ---------- */
+  .cols { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 880px) { .cols { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--r); padding: 18px;
+  }
+  .panel + .panel { margin-top: 16px; }
+  .panel-title {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-3);
+    margin: 0 0 14px; padding-bottom: 9px; border-bottom: 1px solid var(--line-soft);
+  }
+
+  /* ---------- presets ---------- */
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+  .preset {
+    font-family: var(--mono); font-size: 11.5px; padding: 6px 10px;
+    background: var(--panel-2); color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: var(--r);
+    cursor: pointer; transition: background .12s, color .12s, border-color .12s;
+  }
+  .preset:hover { border-color: var(--flow); color: var(--ink); }
+  .preset[aria-pressed="true"] {
+    background: var(--flow); border-color: var(--flow); color: #fff; font-weight: 600;
+  }
+  .preset:focus-visible { outline: 2px solid var(--flow); outline-offset: 2px; }
+
+  /* ---------- sliders ---------- */
+  .ctl { margin-top: 15px; }
+  .ctl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .ctl-name { font-size: 12.5px; color: var(--ink-2); }
+  .ctl-val {
+    font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums;
+    color: var(--ink); font-weight: 500;
+  }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%;
+    height: 20px; background: transparent; cursor: pointer; margin: 3px 0 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 3px; background: var(--line); border-radius: 2px;
+  }
+  input[type=range]::-moz-range-track { height: 3px; background: var(--line); border-radius: 2px; }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: var(--flow); border: 2px solid var(--panel); margin-top: -5px;
+    box-shadow: 0 0 0 1px var(--flow);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--panel);
+    background: var(--flow); box-shadow: 0 0 0 1px var(--flow);
+  }
+  input[type=range]:focus-visible { outline: 2px solid var(--flow); outline-offset: 3px; }
+
+  .btn {
+    width: 100%; margin-top: 18px; padding: 10px;
+    font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .06em;
+    background: var(--ink); color: var(--surface);
+    border: none; border-radius: var(--r); cursor: pointer;
+  }
+  .btn:hover { background: var(--flow); }
+  .btn:focus-visible { outline: 2px solid var(--flow); outline-offset: 2px; }
+
+  /* ---------- canvases ---------- */
+  .figure { }
+  .figure + .figure { margin-top: 18px; }
+  .fig-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 3px; }
+  .fig-title { font-size: 14px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+  .fig-note { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .fig-sub { margin: 0 0 11px; font-size: 12.5px; color: var(--ink-2); max-width: 62ch; }
+  canvas { width: 100%; display: block; border-radius: var(--r); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 9px; }
+  .lg { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .swatch { width: 14px; height: 3px; border-radius: 2px; }
+  .swatch-grad { width: 44px; height: 8px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--ramp-1), var(--ramp-3), var(--ramp-5)); }
+
+  /* ---------- predictions ---------- */
+  .preds { margin-top: 26px; }
+  .scroller { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 640px; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line-soft); }
+  thead th {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-3); background: var(--panel-2); border-bottom: 1px solid var(--line);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.k { font-family: var(--mono); color: var(--flow); font-weight: 600; white-space: nowrap; }
+  td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tbody tr { background: var(--panel); }
+
+  footer {
+    margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--ink-3); max-width: 74ch;
+  }
+  footer strong { color: var(--ink-2); font-weight: 600; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Airborne wind energy · quasi-steady model</p>
+    <h1>A kite pulls harder when it flies sideways</h1>
+    <p class="standfirst">
+      Hold a kite still and it tugs gently. Sweep it fast across the wind and it makes its own
+      headwind, so the pull multiplies by roughly the square of its glide ratio. That is the whole
+      basis of airborne wind energy. Everything below is computed live from the same equations —
+      Loyd's crosswind result, tether drag, gravity — with no fitted parameters.
+    </p>
+  </header>
+
+  <div class="tiles" id="tiles">
+    <div class="tile is-tension">
+      <div class="tile-label">Cycle power</div>
+      <div class="tile-value" id="v-power">—<span class="tile-unit">W</span></div>
+      <div class="tile-sub" id="v-power-sub">—</div>
+    </div>
+    <div class="tile is-tension">
+      <div class="tile-label">Mean tension</div>
+      <div class="tile-value" id="v-tension">—<span class="tile-unit">N</span></div>
+      <div class="tile-sub" id="v-tension-sub">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">Amplification</div>
+      <div class="tile-value" id="v-amp">—</div>
+      <div class="tile-sub">vs. the same kite parked</div>
+    </div>
+    <div class="tile is-flow">
+      <div class="tile-label">Glide ratio E</div>
+      <div class="tile-value" id="v-e">—</div>
+      <div class="tile-sub" id="v-e-sub">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">Of Loyd ceiling</div>
+      <div class="tile-value" id="v-loyd">—<span class="tile-unit">%</span></div>
+      <div class="tile-sub" id="v-loyd-sub">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">Flight state</div>
+      <div class="tile-value" style="font-size:15px;padding-top:5px"><span class="pill pill-ok" id="v-state">flying</span></div>
+      <div class="tile-sub" id="v-state-sub">—</div>
+    </div>
+  </div>
+
+  <div class="cols">
+
+    <div>
+      <section class="panel">
+        <h2 class="panel-title">Kite</h2>
+        <div class="presets" id="presets"></div>
+
+        <div class="ctl">
+          <div class="ctl-head"><label class="ctl-name" for="s-wind">Wind speed</label>
+            <span class="ctl-val" id="o-wind"></span></div>
+          <input type="range" id="s-wind" min="1.5" max="12" step="0.1" value="5">
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label class="ctl-name" for="s-area">Kite area</label>
+            <span class="ctl-val" id="o-area"></span></div>
+          <input type="range" id="s-area" min="0.05" max="6" step="0.01" value="0.12">
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label class="ctl-name" for="s-mass">Kite mass</label>
+            <span class="ctl-val" id="o-mass"></span></div>
+          <input type="range" id="s-mass" min="0.005" max="4" step="0.005" value="0.012">
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label class="ctl-name" for="s-tether">Tether length</label>
+            <span class="ctl-val" id="o-tether"></span></div>
+          <input type="range" id="s-tether" min="10" max="200" step="1" value="50">
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">Flight path</h2>
+        <div class="ctl">
+          <div class="ctl-head"><label class="ctl-name" for="s-beta">Loop centre elevation β₀</label>
+            <span class="ctl-val" id="o-beta"></span></div>
+          <input type="range" id="s-beta" min="12" max="70" step="0.5" value="28">
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label class="ctl-name" for="s-sweep">Sweep amplitude</label>
+            <span class="ctl-val" id="o-sweep"></span></div>
+          <input type="range" id="s-sweep" min="3" max="65" step="0.5" value="42">
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label class="ctl-name" for="s-rise">Rise amplitude</label>
+            <span class="ctl-val" id="o-rise"></span></div>
+          <input type="range" id="s-rise" min="0" max="28" step="0.5" value="11">
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label class="ctl-name" for="s-reel">Reel-out factor <span style="color:var(--ink-3)">v<sub>r</sub>/v<sub>w</sub></span></label>
+            <span class="ctl-val" id="o-reel"></span></div>
+          <input type="range" id="s-reel" min="0.02" max="0.6" step="0.005" value="0.22">
+        </div>
+        <button class="btn" id="btn-opt">Find the best figure-eight</button>
+      </section>
+    </div>
+
+    <div>
+      <section class="figure">
+        <div class="fig-head">
+          <h2 class="fig-title">The wind window, seen from the ground anchor</h2>
+          <span class="fig-note" id="wnote"></span>
+        </div>
+        <p class="fig-sub">
+          Looking downwind. The kite is confined to a sphere of radius equal to the tether, so it has
+          only two freedoms — azimuth and elevation. Colour along the path is tether tension.
+        </p>
+        <canvas id="cv-window" height="440"></canvas>
+        <div class="legend">
+          <span class="lg"><span class="swatch-grad"></span> tension, low → high</span>
+          <span class="lg"><span class="swatch" style="background:var(--flow)"></span> straight downwind (θ = 0)</span>
+        </div>
+      </section>
+
+      <section class="figure">
+        <div class="fig-head">
+          <h2 class="fig-title">Tension through one loop</h2>
+          <span class="fig-note">two peaks per figure-eight</span>
+        </div>
+        <p class="fig-sub">
+          Tension follows cos²θ, so it peaks each time the kite crosses the powered centre — twice
+          per loop — and dips at the outer edges. This waveform shape is prediction P3.
+        </p>
+        <canvas id="cv-trace" height="200"></canvas>
+      </section>
+    </div>
+  </div>
+
+  <section class="preds">
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Prediction, made before measuring</th><th>Now</th><th>Falsified if</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="k">P1</td><td>Static test gives E = (T sin β + W)/(T cos β), same at every wind speed</td><td class="n" id="p1">—</td><td>E drifts with wind speed</td></tr>
+          <tr><td class="k">P2</td><td>Tension multiplies by about E²cos²θ once figure-eights start</td><td class="n" id="p2">—</td><td>No jump, or off by &gt;2×</td></tr>
+          <tr><td class="k">P3</td><td>Two tension peaks per loop, at the centre crossings</td><td class="n">shape</td><td>One peak, or peaks at edges</td></tr>
+          <tr><td class="k">P4</td><td>A fixed fraction of the Loyd ceiling is achieved</td><td class="n" id="p4">—</td><td>Measured far below model</td></tr>
+          <tr><td class="k">P5</td><td>Power peaks at an intermediate tether length</td><td class="n" id="p5">—</td><td>Rises monotonically with length</td></tr>
+          <tr><td class="k">P6</td><td>Below a critical wind speed the quadratic has no real root and the kite cannot climb</td><td class="n" id="p6">—</td><td>Loops fly well below it</td></tr>
+          <tr><td class="k">P7</td><td>Tether drag lumps as C<sub>Dt</sub>·d·L/(4A)</td><td class="n" id="p7">—</td><td>E flat with tether length</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <strong>Model.</strong> Quasi-steady point mass on a sphere. Flight speed solves
+    v<sub>a</sub>² − E(v<sub>w</sub>cos θ − v<sub>r</sub>)·v<sub>a</sub> + mg·climb/(½ρAC<sub>D</sub>) = 0;
+    when its discriminant goes negative there is no real root and the kite stalls. Tether drag is lumped
+    as C<sub>Dt</sub>d L/(4A). Turn radius is floored at five wingspans, without which the optimiser
+    collapses the loop to a point and collects a crosswind bonus it has not earned.
+    <strong>Not modelled:</strong> turbulence, unsteady aerodynamics, canopy deformation, control losses —
+    so real power should land below these numbers, and the gap is the quantity worth measuring.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const RHO = 1.225, G = 9.81, N = 360;
+
+  const PRESETS = {
+    patang:  { label: "Patang",     area: 0.12, mass: 0.012, cl: 0.70, cd: 0.25, d: 0.0005, ar: 1.6, L: 50 },
+    trainer: { label: "Trainer 1.5m²", area: 1.5, mass: 0.9, cl: 0.90, cd: 0.20, d: 0.0015, ar: 4.0, L: 50 },
+    foil:    { label: "Foil 3m²",   area: 3.0,  mass: 1.8,  cl: 0.90, cd: 0.20, d: 0.002,  ar: 4.0, L: 100 },
+    m600:    { label: "Makani M600","area": 54, mass: 1850, cl: 1.4, cd: 0.10, d: 0.03, ar: 12, L: 440 }
+  };
+
+  const S = { cl: 0.70, cd: 0.25, d: 0.0005, ar: 1.6, preset: "patang" };
+  const el = id => document.getElementById(id);
+  const val = id => parseFloat(el(id).value);
+
+  // ---- physics ----------------------------------------------------------
+  const cdEff = (cd, L, d, A) => cd + 1.0 * d * L / (4 * A);
+  const eEff  = (cl, cd, L, d, A) => cl / cdEff(cd, L, d, A);
+
+  function path(beta0, sweep, rise) {
+    const b = [], p = [];
+    for (let i = 0; i < N; i++) {
+      const s = 2 * Math.PI * i / N;
+      p.push(sweep * Math.PI / 180 * Math.sin(s));
+      b.push(beta0 * Math.PI / 180 + rise * Math.PI / 180 * Math.sin(2 * s));
+    }
+    return { b, p };
+  }
+
+  // central differences on the periodic grid
+  function geometry(beta0, sweep, rise, L) {
+    const { b, p } = path(beta0, sweep, rise);
+    const e = [];
+    for (let i = 0; i < N; i++)
+      e.push([Math.cos(b[i]) * Math.cos(p[i]), Math.cos(b[i]) * Math.sin(p[i]), Math.sin(b[i])]);
+
+    const h = 2 * Math.PI / N, out = [];
+    for (let i = 0; i < N; i++) {
+      const a = e[(i - 1 + N) % N], c = e[(i + 1) % N], m = e[i];
+      const de = [(c[0]-a[0])/(2*h), (c[1]-a[1])/(2*h), (c[2]-a[2])/(2*h)];
+      const dd = [(c[0]-2*m[0]+a[0])/(h*h), (c[1]-2*m[1]+a[1])/(h*h), (c[2]-2*m[2]+a[2])/(h*h)];
+      const sp = Math.hypot(de[0], de[1], de[2]) || 1e-12;
+      const cr = [de[1]*dd[2]-de[2]*dd[1], de[2]*dd[0]-de[0]*dd[2], de[0]*dd[1]-de[1]*dd[0]];
+      const kappa = Math.hypot(cr[0], cr[1], cr[2]) / (sp ** 3);
+      out.push({
+        cosTheta: Math.cos(b[i]) * Math.cos(p[i]),
+        beta: b[i], phi: p[i],
+        speedFactor: sp, climb: de[2] / sp,
+        radius: kappa > 1e-12 ? L / kappa : 1e9
+      });
+    }
+    return out;
+  }
+
+  function solve(cfg) {
+    const { v, A, m, L, beta0, sweep, rise, f } = cfg;
+    const E = eEff(S.cl, S.cd, L, S.d, A);
+    const cd = cdEff(S.cd, L, S.d, A);
+    const vr = f * v;
+    const g = geometry(beta0, sweep, rise, L);
+    const ds = 2 * Math.PI / N;
+
+    let T = 0, En = 0, Imp = 0, stalled = 0, minR = 1e9, peak = 0;
+    const trace = [];
+
+    for (const q of g) {
+      minR = Math.min(minR, q.radius);
+      const b = E * (v * q.cosTheta - vr);
+      const c = m * G * q.climb / (0.5 * RHO * A * cd);
+      const disc = b * b - 4 * c;
+      if (b <= 0 || disc < 0) { stalled++; trace.push(null); continue; }
+      const va = 0.5 * (b + Math.sqrt(disc));
+      const ten = Math.max(0.5 * RHO * A * S.cl * va * va - m * G * Math.sin(q.beta), 0);
+      const dt = L * q.speedFactor * ds / va;
+      T += dt; En += ten * vr * dt; Imp += ten * dt;
+      peak = Math.max(peak, ten);
+      trace.push(ten);
+    }
+
+    const span = Math.sqrt(S.ar * A), rMin = 5 * span;
+    const ok = T > 0 && stalled / N < 0.02 && minR >= rMin * 0.98;
+
+    // static reference for the amplification figure
+    const q = 0.5 * RHO * v * v * A;
+    const staticT = Math.hypot(q * S.cl - m * G, q * S.cd);
+
+    return {
+      E, power: T > 0 ? En / T : 0, tension: T > 0 ? Imp / T : 0,
+      stalled: stalled / N, minR, rMin, ok, trace, peak, staticT,
+      loyd: (2 / 27) * RHO * A * v ** 3 * S.cl * E * E,
+      vmin: 2 * Math.sqrt(m * G * 0.5 / (0.5 * RHO * A * cd)) / (E * (0.85 - 1 / 3))
+    };
+  }
+
+  // ---- drawing ----------------------------------------------------------
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  function fit(cv) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.clientWidth;
+    cv.width = w * dpr; cv.height = cv.clientHeight * dpr;
+    const x = cv.getContext("2d");
+    x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { x, w, h: cv.clientHeight };
+  }
+
+  function rampColor(t) {
+    const stops = [css("--ramp-1"), css("--ramp-2"), css("--ramp-3"), css("--ramp-4"), css("--ramp-5")];
+    const i = Math.min(stops.length - 2, Math.max(0, Math.floor(t * (stops.length - 1))));
+    return stops[Math.round(t * (stops.length - 1))] || stops[i];
+  }
+
+  function drawWindow(r, cfg) {
+    const cv = el("cv-window"), { x, w, h } = fit(cv);
+    x.fillStyle = css("--panel"); x.fillRect(0, 0, w, h);
+    x.strokeStyle = css("--line"); x.lineWidth = 1; x.strokeRect(.5, .5, w - 1, h - 1);
+
+    const pad = 34, PW = w - pad * 2, PH = h - pad * 2;
+    const AZ = 75, EL = 85;
+    const X = a => pad + (a / AZ + 0.5) * PW;
+    const Y = e => pad + (1 - e / EL) * PH;
+
+    // cos^3(theta) field — where the power is
+    const cell = 7;
+    for (let a = -AZ / 2; a < AZ / 2; a += cell / PW * AZ) {
+      for (let e = 2; e < EL; e += cell / PH * EL) {
+        const ct = Math.cos(e * Math.PI / 180) * Math.cos(a * Math.PI / 180);
+        const p = Math.max(0, ct) ** 3;
+        x.fillStyle = css("--flow");
+        x.globalAlpha = p * 0.10;
+        x.fillRect(X(a), Y(e), cell, cell);
+      }
+    }
+    x.globalAlpha = 1;
+
+    // grid
+    x.strokeStyle = css("--line-soft"); x.lineWidth = 1;
+    x.font = "10px " + css("--mono"); x.fillStyle = css("--ink-3");
+    for (let e = 0; e <= 80; e += 20) {
+      x.beginPath(); x.moveTo(pad, Y(e)); x.lineTo(w - pad, Y(e)); x.stroke();
+      x.textAlign = "right"; x.fillText(e + "°", pad - 6, Y(e) + 3);
+    }
+    for (let a = -30; a <= 30; a += 15) {
+      x.beginPath(); x.moveTo(X(a), pad); x.lineTo(X(a), h - pad); x.stroke();
+      x.textAlign = "center"; x.fillText(a + "°", X(a), h - pad + 14);
+    }
+
+    // zenith / downwind marker
+    x.strokeStyle = css("--flow"); x.setLineDash([3, 3]); x.lineWidth = 1.5;
+    x.beginPath(); x.moveTo(X(0), pad); x.lineTo(X(0), h - pad); x.stroke();
+    x.setLineDash([]);
+
+    // the path
+    const g = geometry(cfg.beta0, cfg.sweep, cfg.rise, cfg.L);
+    x.lineWidth = 2.5; x.lineCap = "round";
+    for (let i = 0; i < N; i++) {
+      const j = (i + 1) % N;
+      const t0 = r.trace[i], t1 = r.trace[j];
+      x.beginPath();
+      x.moveTo(X(g[i].phi * 180 / Math.PI), Y(g[i].beta * 180 / Math.PI));
+      x.lineTo(X(g[j].phi * 180 / Math.PI), Y(g[j].beta * 180 / Math.PI));
+      if (t0 === null || t1 === null) {
+        x.strokeStyle = css("--stall"); x.setLineDash([2, 4]);
+      } else {
+        x.strokeStyle = rampColor(r.peak > 0 ? t0 / r.peak : 0); x.setLineDash([]);
+      }
+      x.stroke();
+    }
+    x.setLineDash([]);
+
+    // axis captions
+    x.fillStyle = css("--ink-3"); x.font = "10px " + css("--mono");
+    x.textAlign = "center"; x.fillText("AZIMUTH FROM DOWNWIND", w / 2, h - 8);
+    x.save(); x.translate(11, h / 2); x.rotate(-Math.PI / 2);
+    x.textAlign = "center"; x.fillText("ELEVATION", 0, 0); x.restore();
+  }
+
+  function drawTrace(r) {
+    const cv = el("cv-trace"), { x, w, h } = fit(cv);
+    x.fillStyle = css("--panel"); x.fillRect(0, 0, w, h);
+    x.strokeStyle = css("--line"); x.strokeRect(.5, .5, w - 1, h - 1);
+
+    const pad = 34, PW = w - pad * 2, PH = h - pad - 24;
+    const max = Math.max(r.peak, 1e-6);
+    const X = i => pad + (i / (N - 1)) * PW;
+    const Y = t => pad * 0.5 + (1 - t / max) * PH;
+
+    x.strokeStyle = css("--line-soft");
+    x.font = "10px " + css("--mono"); x.fillStyle = css("--ink-3"); x.textAlign = "right";
+    for (let k = 0; k <= 3; k++) {
+      const t = max * k / 3;
+      x.beginPath(); x.moveTo(pad, Y(t)); x.lineTo(w - pad, Y(t)); x.stroke();
+      x.fillText(t.toFixed(t < 10 ? 1 : 0), pad - 6, Y(t) + 3);
+    }
+
+    // area fill
+    x.beginPath(); x.moveTo(X(0), Y(0));
+    for (let i = 0; i < N; i++) x.lineTo(X(i), Y(r.trace[i] ?? 0));
+    x.lineTo(X(N - 1), Y(0)); x.closePath();
+    x.fillStyle = css("--tension"); x.globalAlpha = 0.13; x.fill(); x.globalAlpha = 1;
+
+    x.beginPath();
+    for (let i = 0; i < N; i++) {
+      const t = r.trace[i];
+      if (t === null) continue;
+      i === 0 ? x.moveTo(X(i), Y(t)) : x.lineTo(X(i), Y(t));
+    }
+    x.strokeStyle = css("--tension"); x.lineWidth = 2; x.stroke();
+
+    x.fillStyle = css("--ink-3"); x.font = "10px " + css("--mono"); x.textAlign = "center";
+    ["centre", "right edge", "centre", "left edge", "centre"].forEach((lab, k) => {
+      x.fillText(lab, pad + PW * k / 4, h - 8);
+    });
+    x.save(); x.translate(11, h / 2); x.rotate(-Math.PI / 2);
+    x.fillText("TENSION (N)", 0, 0); x.restore();
+  }
+
+  // ---- ui ---------------------------------------------------------------
+  function cfgFromUI() {
+    return {
+      v: val("s-wind"), A: val("s-area"), m: val("s-mass"), L: val("s-tether"),
+      beta0: val("s-beta"), sweep: val("s-sweep"), rise: val("s-rise"), f: val("s-reel")
+    };
+  }
+
+  function fmt(n, d) {
+    if (!isFinite(n)) return "—";
+    return n >= 1000 ? n.toFixed(0) : n.toFixed(d ?? (n < 10 ? 2 : 1));
+  }
+
+  function render() {
+    const cfg = cfgFromUI();
+    const r = solve(cfg);
+
+    el("o-wind").textContent  = cfg.v.toFixed(1) + " m/s";
+    el("o-area").textContent  = cfg.A.toFixed(2) + " m²";
+    el("o-mass").textContent  = (cfg.m < 1 ? (cfg.m * 1000).toFixed(0) + " g" : cfg.m.toFixed(2) + " kg");
+    el("o-tether").textContent = cfg.L.toFixed(0) + " m";
+    el("o-beta").textContent  = cfg.beta0.toFixed(1) + "°";
+    el("o-sweep").textContent = "±" + cfg.sweep.toFixed(1) + "°";
+    el("o-rise").textContent  = "±" + cfg.rise.toFixed(1) + "°";
+    el("o-reel").textContent  = cfg.f.toFixed(3);
+
+    const flying = r.ok && r.stalled < 0.02;
+    el("v-power").innerHTML   = (flying ? fmt(r.power) : "0") + '<span class="tile-unit">W</span>';
+    el("v-power-sub").textContent = flying ? "reel-out minus reel-in" : "no sustained flight";
+    el("v-tension").innerHTML = (flying ? fmt(r.tension) : "—") + '<span class="tile-unit">N</span>';
+    el("v-tension-sub").textContent = flying ? (r.tension / G).toFixed(2) + " kg equivalent" : "—";
+    el("v-amp").textContent   = flying ? "×" + (r.tension / r.staticT).toFixed(1) : "—";
+    el("v-e").textContent     = r.E.toFixed(2);
+    el("v-e-sub").textContent = "tether is " + (100 * (1 - S.cd / cdEff(S.cd, cfg.L, S.d, cfg.A))).toFixed(0) + "% of drag";
+    el("v-loyd").innerHTML    = (flying ? (100 * r.power / r.loyd).toFixed(0) : "0") + '<span class="tile-unit">%</span>';
+    el("v-loyd-sub").textContent = "ceiling " + fmt(r.loyd) + " W";
+
+    const st = el("v-state");
+    if (flying) { st.className = "pill pill-ok"; st.textContent = "flying"; }
+    else if (r.stalled >= 0.02) { st.className = "pill pill-stall"; st.textContent = "stalls"; }
+    else { st.className = "pill pill-stall"; st.textContent = "turn too tight"; }
+    el("v-state-sub").textContent = r.stalled >= 0.02
+      ? (100 * r.stalled).toFixed(0) + "% of loop has no real root"
+      : "min turn " + r.minR.toFixed(1) + " m / limit " + r.rMin.toFixed(1) + " m";
+
+    el("wnote").textContent = "shaded by cos³θ — the power is at the bottom centre";
+
+    el("p1").textContent = "E = " + r.E.toFixed(2);
+    el("p2").textContent = flying ? "×" + (r.tension / r.staticT).toFixed(1) : "—";
+    el("p4").textContent = flying ? (100 * r.power / r.loyd).toFixed(0) + "%" : "—";
+    const kappa = 1.0 * S.d / (4 * cfg.A);
+    el("p5").textContent = "L opt ≈ " + (3 * 0.14 * S.cd / (kappa * (2 - 3 * 0.14))).toFixed(0) + " m";
+    el("p6").textContent = "v min ≈ " + r.vmin.toFixed(2) + " m/s";
+    el("p7").textContent = (100 * (1 - S.cd / cdEff(S.cd, cfg.L, S.d, cfg.A))).toFixed(0) + "% of drag";
+
+    drawWindow(r, cfg);
+    drawTrace(r);
+  }
+
+  function optimise() {
+    const base = cfgFromUI();
+    let best = null;
+    for (let b0 = 16; b0 <= 60; b0 += 2)
+      for (let sw = 8; sw <= 60; sw += 2)
+        for (let ri = 0; ri <= Math.min(24, b0 - 13); ri += 2)
+          for (let f = 0.06; f <= 0.45; f += 0.02) {
+            const c = Object.assign({}, base, { beta0: b0, sweep: sw, rise: ri, f });
+            const r = solve(c);
+            if (!r.ok) continue;
+            if (!best || r.power > best.p) best = { p: r.power, c };
+          }
+    if (!best) return;
+    el("s-beta").value = best.c.beta0;
+    el("s-sweep").value = best.c.sweep;
+    el("s-rise").value = best.c.rise;
+    el("s-reel").value = best.c.f;
+    render();
+  }
+
+  // presets
+  const pw = el("presets");
+  Object.keys(PRESETS).forEach(k => {
+    const p = PRESETS[k];
+    const b = document.createElement("button");
+    b.className = "preset"; b.type = "button"; b.textContent = p.label;
+    b.setAttribute("aria-pressed", k === "patang" ? "true" : "false");
+    b.onclick = () => {
+      S.cl = p.cl; S.cd = p.cd; S.d = p.d; S.ar = p.ar; S.preset = k;
+      el("s-area").value = p.area; el("s-mass").value = p.mass; el("s-tether").value = p.L;
+      [...pw.children].forEach(c => c.setAttribute("aria-pressed", "false"));
+      b.setAttribute("aria-pressed", "true");
+      optimise();
+    };
+    pw.appendChild(b);
+  });
+
+  ["s-wind","s-area","s-mass","s-tether","s-beta","s-sweep","s-rise","s-reel"]
+    .forEach(id => el(id).addEventListener("input", render));
+  el("btn-opt").addEventListener("click", optimise);
+  window.addEventListener("resize", render);
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+
+  render();
+})();
+</script>
+
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('theme-toggle');
+  var saved=null;
+  try{ saved=localStorage.getItem('kite-theme'); }catch(e){}
+  if(saved){ root.setAttribute('data-theme',saved); }
+  function current(){
+    return root.getAttribute('data-theme')
+      || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  }
+  btn.addEventListener('click',function(){
+    var next = current()==='dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{ localStorage.setItem('kite-theme',next); }catch(e){}
+  });
+})();
+</script>
+</body>
+</html>
