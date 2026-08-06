@@ -120,6 +120,47 @@ Pure first harmonic in azimuth, pure second harmonic in elevation — **a Lissaj
 with everything else set to zero. The classical figure-eight is within ~5% of optimal, and that 5%
 comes from retuning elevation and reel-out speed, not from a better shape.
 
+## Uncertainty, and why P1 must come first
+
+A prediction of "2.32 W" cannot be wrong — any measurement differs from it, so "close enough"
+becomes a judgement call. A prediction of "1.0 to 4.9 W" *can* be wrong. Bands are what make
+P1–P7 testable rather than decorative, so every input is drawn from its distribution a few thousand
+times and pushed through the model.
+
+Two things fell out that were not obvious in advance.
+
+**The intuitive error analysis is wrong.** It is tempting to say that P2, being a *ratio* of
+crosswind to static tension, is better determined than either part — a high `C_L` raises both, so it
+cancels. It doesn't:
+
+```
+static tension     ~ C_L
+crosswind tension  ~ C_L · E²  =  C_L³ / C_D²
+ratio              ~ C_L² / C_D²
+```
+
+Nothing cancels. The ratio depends on the *square* of an already-uncertain glide ratio, making it
+**more** sensitive to the coefficients than either tension alone. The real argument for Monte Carlo
+isn't that it handles correlations better than adding in quadrature — it's that it stops you
+reasoning your way to a confident wrong answer.
+
+**The experiment has a mandatory order.** One-at-a-time sensitivity says `C_L` (231%), `C_D` (210%)
+and wind speed (193%) dominate everything else by an order of magnitude. Since `C_L` and `C_D` are
+currently *estimates*, the predictions are untestable until they're measured:
+
+| Scenario | Predicted power at 5 m/s | Band width |
+|---|---|---|
+| Today, coefficients estimated | 2.30 W  `[0.17 – 11.89]` | ×68 |
+| After P1 has measured E | 2.33 W  `[1.04 – 4.85]` | ×5 |
+
+One afternoon of parked-kite measurements tightens every downstream prediction by **13×**. So P1
+isn't merely the first prediction — it is the gate. Fly it, regenerate the bands with the measured
+coefficients, and only then attempt P2 or P4.
+
+```bash
+python uncertainty.py            # bands + sensitivity + the scenario comparison
+```
+
 ## Layout
 
 ```
@@ -127,6 +168,7 @@ model/
   kite.py          physics: flight-speed quadratic, tether drag, cycle power, Loyd ceiling
   optimize.py      grid sweep -> Nelder-Mead -> differential evolution, with the nesting test
   predictions.py   generates the dated pre-registration document
+  uncertainty.py   Monte Carlo bands, sensitivity, and the scenario comparison
 docs/
   index.html       the interactive model (served by GitHub Pages)
 ```
