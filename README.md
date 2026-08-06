@@ -9,7 +9,7 @@ governing result down in 1980, and the field has validated it at 20 kW and above
 Nobody has checked it at 0.12 m² — an Indian festival kite — because there is no money in it.
 This project does that, and reports where the published models hold and where they break.
 
-**→ [Interactive model](https://YOUR-USERNAME.github.io/YOUR-REPO/)**
+**→ [Interactive model](https://YOUR-USERNAME.github.io/crosswind-kite-power/)**
 
 ---
 
