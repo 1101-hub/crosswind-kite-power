@@ -195,6 +195,45 @@ def lissajous_state(s, params):
     return beta, phi, dbeta, dphi
 
 
+def circle_state(s, params):
+    """Circular loop: phi = R sin(s), beta = beta0 + R cos(s).
+
+    Note the frequency ratio is 1:1, not the 1:2 that makes a figure-eight.
+    That single difference is why this is a circle, and it matters more than
+    it looks:
+
+    A figure-eight REVERSES direction at each azimuth extreme, and that
+    reversal is a tight, near-cusp turn. The best a Lissajous eight can manage
+    is a turn radius of about 0.18 of the tether length. A circle never
+    reverses -- its curvature is uniform -- so it can hold a far gentler turn.
+
+    That is decisive for large kites. The five-wingspan turning limit scales as
+    sqrt(area), so past a certain size the eight becomes geometrically
+    impossible and only the circle remains feasible. It is very likely why
+    Makani flew circles rather than eights.
+
+    The cost of a circle is that it winds the tether up, so it needs a swivel
+    or periodic unwinding. Small kites, where the turn limit does not bind,
+    are better off with the eight for exactly that reason.
+
+    Note the 1/cos(beta0) on the azimuth. Without it this traces a circle in
+    ANGLE space, which on the sphere is an ellipse squashed by cos(beta) --
+    and an ellipse has a tight end, defeating the whole point. Azimuthal arc
+    length is L*cos(beta)*dphi while elevation arc length is L*dbeta, so the
+    azimuth amplitude has to be divided by cos(beta0) for the loop to be
+    round in arc length rather than round on a plot.
+    """
+    beta0 = np.radians(params['beta0'])
+    R = np.radians(params['radius'])
+    stretch = R / max(np.cos(beta0), 0.15)
+
+    phi = stretch * np.sin(s)
+    beta = beta0 + R * np.cos(s)
+    dphi = stretch * np.cos(s)
+    dbeta = -R * np.sin(s)
+    return beta, phi, dbeta, dphi
+
+
 def fourier_state(s, params):
     """General closed periodic path as a truncated Fourier series.
 

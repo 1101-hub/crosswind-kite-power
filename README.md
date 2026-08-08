@@ -120,6 +120,54 @@ Pure first harmonic in azimuth, pure second harmonic in elevation — **a Lissaj
 with everything else set to zero. The classical figure-eight is within ~5% of optimal, and that 5%
 comes from retuning elevation and reel-out speed, not from a better shape.
 
+## The design chart
+
+![Cycle-averaged power against kite area and wind speed](figures/design_chart.png)
+
+Power from a crosswind kite across five orders of magnitude, from a 0.12 m² festival patang to
+Makani's 54 m² M600. At every point the trajectory is optimised — both a figure-eight and a circular
+loop are tried, and the better one wins. The teal line at the bottom is the **no-flight boundary**,
+where the flight-speed quadratic loses its real root and the kite physically cannot sustain the
+climb.
+
+Two things fell out of building this that were not obvious.
+
+**A figure-eight cannot fly at large scale.** The five-wingspan turning limit grows as √area, but the
+tightest turn a Lissajous figure-eight can hold is only about **0.18 × tether length** — the reversal
+at each azimuth extreme is a near-cusp. A circle never reverses, so it holds about **0.22 ×**. Past a
+certain size the eight is *geometrically impossible* and only the circle remains feasible.
+
+An earlier version of this chart showed nothing above 1 m² able to fly. That turned out not to be a
+bug in the physics but the model correctly reporting an impossible configuration: the tether length
+was being scaled as `A^0.16` while the turn requirement grew as `√A`. Tether length has to scale with
+wingspan.
+
+**And the model says circles beat figure-eights everywhere on pure power.** That is not a
+contradiction of practice — it's a statement about what the model contains. There is no penalty here
+for winding the tether up, and tether twist is exactly why the field flies figure-eights. The
+advantage of the eight is operational, not aerodynamic.
+
+### With size removed
+
+![Power coefficient against glide ratio and gravity number](figures/design_chart_nondim.png)
+
+The same physics, non-dimensionalised. Everything now depends on just two numbers: the glide ratio
+`E = C_L/C_D`, and the gravity number `G = mg/(½ρv²A·C_L)` — how heavy the kite is relative to the
+lift it can make. Any two kites sharing `(E, G)` land on the same point regardless of size, which is
+what licenses a 0.12 m² patang to say anything at all about a 54 m² Makani wing.
+
+The 1.5 m² trainer and the 3 m² foil sit on **exactly the same point** despite one being twice the
+area. That is the collapse working.
+
+Two readings worth taking from it:
+
+- **`E` dominates.** The contours run almost vertically — power coefficient tracks glide ratio and
+  barely notices gravity until `G` exceeds roughly 0.5. This is why P1 is the gate: get `E` wrong
+  and nothing else matters.
+- **Gravity only bites in the top-left.** High `G` *and* low `E` together produce the no-flight
+  region. A patang survives light wind not despite being flimsy but because of it — at 12 grams its
+  `G` is 0.06, an order of magnitude below a power foil's.
+
 ## Uncertainty, and why P1 must come first
 
 A prediction of "2.32 W" cannot be wrong — any measurement differs from it, so "close enough"
